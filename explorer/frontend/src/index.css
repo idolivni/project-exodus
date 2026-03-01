@@ -1,0 +1,96 @@
+/* EXODUS Galaxy Explorer — Global Styles */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* Core palette */
+  --bg-deep: #0a0a1a;
+  --bg-panel: rgba(15, 15, 35, 0.85);
+  --bg-card: rgba(20, 20, 45, 0.9);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-active: rgba(255, 255, 255, 0.2);
+  --text-primary: #e0e0e0;
+  --text-secondary: #8888aa;
+  --text-dim: #555577;
+  --text-bright: #ffffff;
+
+  /* Channel colors */
+  --ch-ir: #ff9800;
+  --ch-ruwe: #00bcd4;
+  --ch-pm: #e040fb;
+  --ch-transit: #4caf50;
+  --ch-phot: #ffeb3b;
+  --ch-radio: #f44336;
+  --ch-hz: #2196f3;
+
+  /* Multi-messenger colors */
+  --mm-fermi: #9e9e9e;
+  --mm-fermi-unid: #ffffff;
+  --mm-icecube: #9c27b0;
+  --mm-gw: #009688;
+  --mm-frb: #f44336;
+  --mm-pulsar: #ffffff;
+
+  /* Semantic */
+  --danger: #ff4444;
+  --warning: #ff8888;
+  --success: #44ff88;
+  --gold: #ffd700;
+
+  /* Fonts */
+  --font-body: 'Inter', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+
+  /* Sizing */
+  --sidebar-width: 280px;
+  --detail-width: 380px;
+  --statusbar-height: 32px;
+  --topbar-height: 44px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.15);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.25);
+}
+
+/* Frosted glass panels */
+.glass-panel {
+  background: var(--bg-panel);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+/* Mono values */
+.mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}

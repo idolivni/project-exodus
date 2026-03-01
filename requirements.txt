@@ -1,0 +1,45 @@
+# EXODUS requirements — pinned 2026-02-25
+# Python 3.13.3 on macOS (Apple Silicon)
+# Install: pip install -r requirements.txt
+
+# Core scientific computing
+numpy==2.4.2
+scipy==1.17.0
+pandas==3.0.1
+astropy==7.2.0
+matplotlib==3.10.8
+
+# Astronomical data access
+astroquery==0.4.11
+lightkurve==2.5.1
+healpy==1.19.0
+
+# Machine learning
+scikit-learn==1.8.0
+torch==2.10.0
+
+# Signal processing
+librosa==0.11.0
+
+# Data storage
+h5py==3.15.1
+sqlalchemy==2.0.46
+
+# 3D dust maps
+dustmaps==1.0.14
+
+# Utilities
+tqdm==4.67.3
+pyyaml==6.0.3
+requests==2.32.5
+python-dateutil==2.9.0.post0
+
+# Galaxy Explorer backend
+fastapi==0.133.0
+uvicorn==0.41.0
+
+# Testing
+pytest==9.0.2
+
+# For Breakthrough Listen data (install separately if needed)
+# pip install turbo-seti blimpy setigen

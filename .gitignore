@@ -1,0 +1,56 @@
+# ── EXODUS .gitignore ──────────────────────────────────
+# Public repo: pipeline code + explorer UI + tests
+# Private: all data, results, candidate info, strategy docs
+
+# ── Python ─────────────────────────────────────────────
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# ── Node / Frontend ───────────────────────────────────
+explorer/frontend/node_modules/
+explorer/frontend/dist/
+
+# ── Data (contains target coordinates & results) ──────
+data/
+logs/
+*.log
+notebooks/
+
+# ── Project strategy & memory (private) ───────────────
+.exodus_meta/
+.claude/
+TODO.md
+
+# ── Paper & outreach (private) ─────────────────────────
+docs/paper*.md
+docs/email_draft*.md
+docs/candidate_*
+docs/*dossier*
+docs/*onepager*
+docs/*redacted*
+docs/*proposal*
+
+# ── OS / IDE ──────────────────────────────────────────
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Private analysis scripts (not part of core pipeline) ─
+scripts/private/
+
+# ── Large / binary files ─────────────────────────────
+*.pkl
+*.h5
+*.fits
+*.csv
+*.parquet

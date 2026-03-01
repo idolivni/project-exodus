@@ -1,0 +1,47 @@
+project:
+  name: "Project EXODUS"
+  version: "0.1.0"
+  data_dir: "data"
+  cache_dir: "data/cache"
+  results_dir: "data/results"
+
+search:
+  # Angular separation threshold for cross-matching sources across catalogs.
+  # 5 arcsec accommodates WISE astrometric precision for bright/saturated
+  # sources (W1 PSF = 6.1", typical positional error ~1-2" for bright stars).
+  # Standard Gaia/2MASS cross-ID works fine at this radius too.
+  crossmatch_radius_arcsec: 5.0
+
+  # Anomaly threshold (sigma above background)
+  anomaly_sigma: 3.0
+
+  # Minimum number of independent datasets showing anomaly for convergence
+  min_convergence_channels: 2
+
+targets:
+  # Start narrow — these are the highest-priority targets
+  tier1_max: 100
+  tier2_max: 5000
+
+catalogs:
+  exoplanet_archive:
+    url: "https://exoplanetarchive.ipac.caltech.edu/TAP"
+  gaia:
+    url: "https://gea.esac.esa.int/tap-server/tap"
+  breakthrough_listen:
+    url: "http://seti.berkeley.edu/opendata"
+  mast:
+    url: "https://mast.stsci.edu"
+
+# ── Performance tuning ─────────────────────────────────
+# Controls pipeline speed vs server-friendliness trade-off.
+# All defaults are safe — set parallel_targets: 1 to disable parallelism.
+performance:
+  # Number of targets gathered concurrently (1 = sequential, old behavior)
+  parallel_targets: 5
+  # Per-attempt timeout for Gaia TAP queries (seconds, 0 = no timeout)
+  gaia_timeout_sec: 60
+  # Try ARI Heidelberg / VizieR mirrors when ESA is down
+  gaia_mirror_fallback: true
+  # Positions per UNION ALL query in controls cone search
+  controls_cone_batch_size: 10
