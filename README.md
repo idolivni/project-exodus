@@ -69,4 +69,4 @@ Active research project. Pipeline operational across multiple stellar population
 
 ## License
 
-All rights reserved. Code published for priority documentation and review purposes.
+MIT License. See [LICENSE](LICENSE) for details.
