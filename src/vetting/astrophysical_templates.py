@@ -533,11 +533,36 @@ class UnexplainabilityScorer:
         template_matches.sort(key=lambda m: -m.fit_score)
         best = template_matches[0]
 
-        # Compute residual channels: channels not explained by ANY template
+        # Compute residual channels: channels not explained by ANY template.
+        # Bug fix (s35): templates with strong physical contradictions
+        # (e.g., RS CVn predicting radio but star has no X-ray) must NOT
+        # be allowed to clear the contradicted channel from residuals.
+        # We detect conflicts per-template BEFORE clearing.
         all_explained = set()
         for m in template_matches:
             if m.fit_score > 0.3:  # only count templates with decent fit
-                all_explained.update(m.explained_channels)
+                tdef = self.templates.get(m.template_name, {})
+                t_conflicts = self._detect_template_conflicts(
+                    m, tdef, active_channels, channel_scores,
+                    channel_details,
+                )
+                # Channels with strong conflicts cannot be cleared
+                conflicted = {
+                    c.channel for c in t_conflicts
+                    if c.severity == "strong"
+                }
+                if conflicted:
+                    log.info(
+                        "%s: template '%s' (fit=%.3f) blocked from "
+                        "clearing %s due to strong conflict(s)",
+                        target_id, m.template_name, m.fit_score,
+                        conflicted,
+                    )
+                explainable = [
+                    ch for ch in m.explained_channels
+                    if ch not in conflicted
+                ]
+                all_explained.update(explainable)
 
         residual_channels = [
             ch for ch in active_channels if ch not in all_explained
@@ -931,11 +956,13 @@ class UnexplainabilityScorer:
                     channel="ir_variability",
                 ))
 
-        # --- Active flare star: X-ray contradiction ---
-        # Active stars should be X-ray bright (Güdel-Benz relation).
-        # If radio_emission is active but no X-ray detection, that
-        # contradicts the flare star template.
-        if tname == "active_flare_star":
+        # --- Active/RS CVn star: X-ray contradiction (Güdel-Benz) ---
+        # Active stars and RS CVn binaries should be X-ray bright
+        # (Güdel-Benz relation).  If radio_emission is active but no
+        # X-ray detection, that contradicts the template.
+        # Bug fix (s35): rs_cvn_active_binary was missing from this check,
+        # allowing it to clear radio_emission despite X-ray silence.
+        if tname in ("active_flare_star", "rs_cvn_active_binary"):
             radio_score = channel_scores.get("radio_emission", 0.0)
             radio_details = channel_details.get("radio_emission", {})
             xray_detected = radio_details.get("xray_detected", None)

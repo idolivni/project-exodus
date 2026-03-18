@@ -133,6 +133,7 @@ class EXODUSScore:
     rank: Optional[int] = None
     combined_p: Optional[float] = None
     stouffer_p: Optional[float] = None  # Conservative: includes all channels (p=1.0 for inactive)
+    ebm_p: Optional[float] = None  # Empirical Brown's Method: like Fisher but corrected for channel dependence
     fdr_significant: Optional[bool] = None       # Based on stouffer_p (conservative gate)
     q_value: Optional[float] = None               # BH q-value from stouffer_p
     # Audit fix S23-F6: renamed from fdr_significant_fisher / q_value_fisher
@@ -170,6 +171,13 @@ class EXODUSScore:
                 "(p=1.0 for inactive) and is the conservative FDR gate. "
                 "fdr_significant is based on stouffer_p."
             )
+        if self.ebm_p is not None:
+            caveats.append(
+                "Empirical Brown's Method (ebm_p) corrects Fisher for "
+                "inter-channel dependence using control covariance. "
+                "Poole et al. 2016. Most accurate combiner when "
+                "covariance matrix is available."
+            )
         if caveats:
             d["statistical_caveats"] = caveats
         return d
@@ -181,7 +189,9 @@ class EXODUSScore:
         ]
         # Show Stouffer (conservative) as primary, Fisher as secondary
         p_str = ""
-        if self.stouffer_p is not None:
+        if self.ebm_p is not None:
+            p_str = f"  ebm={self.ebm_p:.2e}"
+        elif self.stouffer_p is not None:
             p_str = f"  sp={self.stouffer_p:.2e}"
         elif self.combined_p is not None:
             p_str = f"  fp={self.combined_p:.2e}"
@@ -247,6 +257,7 @@ class EXODUSScorer:
         coverage_matrix: Optional[Any] = None,
         population_fdr: bool = False,
         convergence_priority: bool = False,
+        ebm_covariance: Optional[Any] = None,
     ):
         self._convergence_priority = convergence_priority
         if convergence_priority:
@@ -264,6 +275,7 @@ class EXODUSScorer:
         self.control_scores = control_scores or {}
         self.coverage_matrix = coverage_matrix
         self._population_fdr = population_fdr
+        self._ebm_covariance = ebm_covariance  # (n_ch, n_ch) from compute_ebm_covariance()
         self._results: List[EXODUSScore] = []
         mode_str = "CONVERGENCE-PRIORITY" if convergence_priority else "standard"
         log.info(
@@ -537,6 +549,21 @@ class EXODUSScorer:
             except ImportError:
                 log.warning("scipy not available; Stouffer combined p-value not computed")  # CX-6
 
+        # --- EBM: Fisher corrected for channel dependence ---
+        # Uses all calibrated channels (same set as Stouffer) with the
+        # empirical covariance matrix from controls.  Falls back to
+        # standard Fisher if no covariance matrix is available.
+        ebm_p = None
+        if all_p_for_stouffer:
+            try:
+                from src.core.statistics import ebm_combine
+                ebm_p = ebm_combine(
+                    all_p_for_stouffer,
+                    covariance_matrix=self._ebm_covariance,
+                )
+            except ImportError:
+                log.warning("EBM not available; ebm_p not computed")
+
         # Detect single-channel extremes for human review.
         # Fires when any calibrated channel has p < 0.001 but there's only
         # 0-1 active channels.  The pipeline is architecturally blind to these
@@ -567,6 +594,7 @@ class EXODUSScorer:
             rank=None,
             combined_p=combined_p,
             stouffer_p=stouffer_p,
+            ebm_p=ebm_p,
             fdr_significant=None,  # set in score_all()
             coverage_penalty=coverage_penalty,
             n_channels_with_data=n_with_data,

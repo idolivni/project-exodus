@@ -20,6 +20,10 @@ explorer/frontend/dist/
 # ── Data (contains target coordinates & results) ──────
 data/
 logs/
+run.log
+results.tsv
+autoresearch_run.log
+autoresearch_results.tsv
 *.log
 notebooks/
 
@@ -31,11 +35,18 @@ TODO.md
 # ── Paper & outreach (private) ─────────────────────────
 docs/paper*.md
 docs/email_draft*.md
+docs/*_summary_for_*
 docs/candidate_*
 docs/*dossier*
 docs/*onepager*
 docs/*redacted*
 docs/*proposal*
+docs/private/
+docs/archive/
+docs/exodus_summary*
+
+# ── Private program / analysis files ─────────────────
+program.md
 
 # ── OS / IDE ──────────────────────────────────────────
 .DS_Store
@@ -47,6 +58,10 @@ docs/*proposal*
 
 # ── Private analysis scripts (not part of core pipeline) ─
 scripts/private/
+scripts/generate_candidate*.py
+scripts/generate_exodus_summary.py
+scripts/calibrate_irvar_only.py
+scripts/neowise_lomb_scargle.py
 
 # ── Large / binary files ─────────────────────────────
 *.pkl

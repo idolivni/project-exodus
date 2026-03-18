@@ -16,6 +16,12 @@ fisher_combine(p_values)
 stouffer_combine(p_values, weights=None)
     Stouffer's weighted Z-method for combining p-values.
 
+ebm_combine(p_values, covariance_matrix=None)
+    Empirical Brown's Method: combine dependent p-values (Poole+ 2016).
+
+compute_ebm_covariance(control_p_matrix)
+    Compute the covariance matrix needed by ebm_combine from controls.
+
 calibrate_score_to_pvalue(score, control_scores)
     Map a heuristic [0,1] detector score to a calibrated p-value
     using the empirical distribution of control (null) scores.
@@ -189,6 +195,143 @@ def stouffer_combine(
     combined_p = float(sp_stats.norm.sf(z_combined))
 
     return max(combined_p, 1e-300)
+
+
+def ebm_combine(
+    p_values: Sequence[float],
+    covariance_matrix: Optional[np.ndarray] = None,
+    weights: Optional[Sequence[float]] = None,
+) -> float:
+    """Combine possibly-dependent p-values using Empirical Brown's Method.
+
+    EBM (Poole et al. 2016, Bioinformatics) extends Fisher's method to
+    account for correlations between test statistics.  The key idea:
+
+        Fisher statistic  X = -2 * sum(log(p_i))
+
+    Under H0 with *independent* tests, X ~ chi2(2k).  When tests are
+    correlated, X follows a *scaled* chi-squared: c * chi2(f), where
+    the scale ``c`` and effective DOF ``f`` are estimated from the
+    empirical covariance of the test statistics across control samples.
+
+    Parameters
+    ----------
+    p_values : array-like of float
+        P-values to combine (may be dependent).
+    covariance_matrix : np.ndarray, optional
+        (k, k) empirical covariance of -2*log(p) statistics computed
+        from control samples.  If None, assumes independence (standard
+        Fisher).
+    weights : array-like of float, optional
+        Reserved for future use; currently ignored.
+
+    Returns
+    -------
+    combined_p : float
+        Combined p-value accounting for inter-channel dependence.
+
+    References
+    ----------
+    Poole, W. et al. (2016). "Combining dependent P-values with an
+    empirical adaptation of Brown's method." Bioinformatics 32(17).
+    """
+    pv = np.asarray(p_values, dtype=np.float64)
+    valid = (pv > 0) & (pv <= 1.0) & np.isfinite(pv)
+    pv = pv[valid]
+    k = len(pv)
+
+    if k == 0:
+        return 1.0
+    if k == 1:
+        return float(pv[0])
+
+    # Fisher statistic: X = -2 * sum(log(p_i))
+    x_obs = -2.0 * np.sum(np.log(pv))
+
+    if covariance_matrix is None:
+        # Independence assumption → standard Fisher
+        combined_p = float(sp_stats.chi2.sf(x_obs, 2 * k))
+        return max(combined_p, 1e-300)
+
+    # --- Empirical Brown's Method ---
+    # Each component t_i = -2*log(p_i) has E[t_i]=2 and Var(t_i)=4
+    # under H0 (chi2(2)).  The sum X = sum(t_i) has:
+    #   E[X] = 2k
+    #   Var[X] = sum_ij Cov(t_i, t_j)  (from empirical covariance)
+
+    # Extract the sub-matrix for the valid channels
+    cov = np.asarray(covariance_matrix, dtype=np.float64)
+    if cov.shape[0] < k or cov.shape[1] < k:
+        log.warning(
+            "EBM covariance matrix (%d×%d) smaller than %d valid p-values; "
+            "falling back to Fisher (independence)",
+            cov.shape[0], cov.shape[1], k,
+        )
+        combined_p = float(sp_stats.chi2.sf(x_obs, 2 * k))
+        return max(combined_p, 1e-300)
+
+    cov_sub = cov[:k, :k]
+
+    expected = 2.0 * k
+    var_x = np.sum(cov_sub)
+
+    # Theoretical independent variance for comparison
+    var_independent = 4.0 * k
+    if var_x <= 0:
+        log.warning("EBM variance non-positive (%.4f); falling back to Fisher", var_x)
+        combined_p = float(sp_stats.chi2.sf(x_obs, 2 * k))
+        return max(combined_p, 1e-300)
+
+    # Match moments to scaled chi-squared: c * chi2(f)
+    # where E[c*chi2(f)] = c*f = expected  and  Var[c*chi2(f)] = 2*c^2*f = var_x
+    # Solving: c = var_x / (2 * expected),  f = 2 * expected^2 / var_x
+    c = var_x / (2.0 * expected)
+    f = 2.0 * expected**2 / var_x
+
+    log.debug(
+        "EBM: k=%d, E[X]=%.1f, Var[X]=%.1f (indep=%.1f), scale=%.3f, dof=%.1f",
+        k, expected, var_x, var_independent, c, f,
+    )
+
+    # P-value from scaled chi-squared: P(c*chi2(f) > x_obs) = P(chi2(f) > x_obs/c)
+    combined_p = float(sp_stats.chi2.sf(x_obs / c, f))
+
+    return max(combined_p, 1e-300)
+
+
+def compute_ebm_covariance(
+    control_p_matrix: np.ndarray,
+) -> np.ndarray:
+    """Compute the EBM covariance matrix from control p-values.
+
+    Parameters
+    ----------
+    control_p_matrix : np.ndarray
+        (n_controls, n_channels) matrix where each row is one control
+        star and each column is one channel's calibrated p-value.
+        Values must be in (0, 1].
+
+    Returns
+    -------
+    cov : np.ndarray
+        (n_channels, n_channels) covariance matrix of the transformed
+        statistics t_i = -2*log(p_i).
+    """
+    mat = np.asarray(control_p_matrix, dtype=np.float64)
+    # Clamp to avoid log(0)
+    mat = np.clip(mat, 1e-300, 1.0)
+    # Transform to Fisher components: t_i = -2*log(p_i)
+    t_mat = -2.0 * np.log(mat)
+    # Empirical covariance across controls
+    cov = np.cov(t_mat, rowvar=False)
+    n_controls, n_channels = mat.shape
+    log.info(
+        "EBM covariance computed: %d controls × %d channels, "
+        "mean off-diagonal correlation = %.3f",
+        n_controls, n_channels,
+        np.mean(np.abs(np.corrcoef(t_mat, rowvar=False)[np.triu_indices(n_channels, k=1)])),
+    )
+    return cov
 
 
 # =====================================================================
